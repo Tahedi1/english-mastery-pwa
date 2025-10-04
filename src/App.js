@@ -18,6 +18,10 @@ const EnglishMasteryPWA = () => {
   const [selectedWordForActions, setSelectedWordForActions] = useState(null);
   const [compactView, setCompactView] = useState(false);
   const [wordSort, setWordSort] = useState('alphabetical');
+  const [easySelectMode, setEasySelectMode] = useState(false);
+  const [showEasyWords, setShowEasyWords] = useState(false);
+  const [starSelectMode, setStarSelectMode] = useState(false);
+  const [showEasySection, setShowEasySection] = useState(false);
 
   const [newSpeech, setNewSpeech] = useState({
     title: '',
@@ -26,28 +30,149 @@ const EnglishMasteryPWA = () => {
     text: ''
   });
 
-  const [speeches, setSpeeches] = useState([
-    {
-      id: 1,
-      title: "I Have a Dream",
-      speaker: "Martin Luther King Jr.",
-      youtubeUrl: "https://www.youtube.com/watch?v=vP4iY1TtS3s",
-      listens: 7,
-      text: "I have a dream that one day this nation will rise up and live out the true meaning of its creed: 'We hold these truths to be self-evident, that all men are created equal.' I have a dream that one day on the red hills of Georgia, the sons of former slaves and the sons of former slave owners will be able to sit down together at the table of brotherhood.",
-      knownWords: new Set(['dream', 'nation', 'meaning', 'equal', 'creed', 'truths', 'evident']),
-      importantWords: new Set(['creed', 'evident', 'brotherhood']),
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      studyDays: [
-        new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      ]
-    }
-  ]);
-
+  const [speeches, setSpeeches] = useState([]);
   const [easyWords, setEasyWords] = useState(new Set());
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedSpeeches = localStorage.getItem('englishMastery_speeches');
+      const savedEasyWords = localStorage.getItem('englishMastery_easyWords');
+      const savedDarkMode = localStorage.getItem('englishMastery_darkMode');
+      const savedCompactView = localStorage.getItem('englishMastery_compactView');
+      const savedWordSort = localStorage.getItem('englishMastery_wordSort');
+
+      if (savedSpeeches) {
+        const parsed = JSON.parse(savedSpeeches);
+        const speechesWithSets = parsed.map(s => ({
+          ...s,
+          knownWords: new Set(s.knownWords || []),
+          importantWords: new Set(s.importantWords || [])
+        }));
+        setSpeeches(speechesWithSets);
+      } else {
+        // Set default demo speech only if no saved data
+        setSpeeches([
+          {
+            id: 1,
+            title: "I Have a Dream",
+            speaker: "Martin Luther King Jr.",
+            youtubeUrl: "https://www.youtube.com/watch?v=vP4iY1TtS3s",
+            listens: 7,
+            text: "I have a dream that one day this nation will rise up and live out the true meaning of its creed: 'We hold these truths to be self-evident, that all men are created equal.' I have a dream that one day on the red hills of Georgia, the sons of former slaves and the sons of former slave owners will be able to sit down together at the table of brotherhood.",
+            knownWords: new Set(['dream', 'nation', 'meaning', 'equal', 'creed', 'truths', 'evident']),
+            importantWords: new Set(['creed', 'evident', 'brotherhood']),
+            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+            studyDays: [
+              new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            ]
+          }
+        ]);
+      }
+
+      if (savedEasyWords) {
+        setEasyWords(new Set(JSON.parse(savedEasyWords)));
+      }
+
+      if (savedDarkMode) {
+        setDarkMode(JSON.parse(savedDarkMode));
+      }
+
+      if (savedCompactView) {
+        setCompactView(JSON.parse(savedCompactView));
+      }
+
+      if (savedWordSort) {
+        setWordSort(savedWordSort);
+      }
+
+      const savedEasySelectMode = localStorage.getItem('englishMastery_easySelectMode');
+      if (savedEasySelectMode) {
+        setEasySelectMode(JSON.parse(savedEasySelectMode));
+      }
+
+      const savedStarSelectMode = localStorage.getItem('englishMastery_starSelectMode');
+      if (savedStarSelectMode) {
+        setStarSelectMode(JSON.parse(savedStarSelectMode));
+      }
+    } catch (error) {
+      console.error('Error loading data from localStorage:', error);
+    }
+  }, []);
+
+  // Save speeches to localStorage whenever they change
+  useEffect(() => {
+    if (speeches.length > 0) {
+      try {
+        const speechesToSave = speeches.map(s => ({
+          ...s,
+          knownWords: Array.from(s.knownWords),
+          importantWords: Array.from(s.importantWords)
+        }));
+        localStorage.setItem('englishMastery_speeches', JSON.stringify(speechesToSave));
+      } catch (error) {
+        console.error('Error saving speeches to localStorage:', error);
+      }
+    }
+  }, [speeches]);
+
+  // Save easyWords to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('englishMastery_easyWords', JSON.stringify(Array.from(easyWords)));
+    } catch (error) {
+      console.error('Error saving easyWords to localStorage:', error);
+    }
+  }, [easyWords]);
+
+  // Save darkMode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('englishMastery_darkMode', JSON.stringify(darkMode));
+    } catch (error) {
+      console.error('Error saving darkMode to localStorage:', error);
+    }
+  }, [darkMode]);
+
+  // Save compactView to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('englishMastery_compactView', JSON.stringify(compactView));
+    } catch (error) {
+      console.error('Error saving compactView to localStorage:', error);
+    }
+  }, [compactView]);
+
+  // Save wordSort to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('englishMastery_wordSort', wordSort);
+    } catch (error) {
+      console.error('Error saving wordSort to localStorage:', error);
+    }
+  }, [wordSort]);
+
+  // Save easySelectMode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('englishMastery_easySelectMode', JSON.stringify(easySelectMode));
+    } catch (error) {
+      console.error('Error saving easySelectMode to localStorage:', error);
+    }
+  }, [easySelectMode]);
+
+  // Save starSelectMode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('englishMastery_starSelectMode', JSON.stringify(starSelectMode));
+    } catch (error) {
+      console.error('Error saving starSelectMode to localStorage:', error);
+    }
+  }, [starSelectMode]);
 
   useEffect(() => {
     if (showMenu || showAddModal || showReportModal || showBackupModal || selectedWordForActions) {
@@ -1637,7 +1762,7 @@ const EnglishMasteryPWA = () => {
               </div>
 
               <div className={`p-4 rounded-3xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-2xl`}>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-4">
                   <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     Vocabulary
                   </h3>
@@ -1646,24 +1771,81 @@ const EnglishMasteryPWA = () => {
                     className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl active:scale-95 transition-all font-medium text-sm shadow-lg"
                   >
                     <Copy size={16} />
-                    Copy List
+                    <span className="hidden sm:inline">Copy List</span>
                   </button>
                 </div>
-                
-                <div className={`p-3 rounded-xl mb-4 ${darkMode ? 'bg-gray-900' : 'bg-blue-50'}`}>
-                  <p className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-1.5`}>
-                    <strong>How to use:</strong>
-                  </p>
-                  <ul className={`text-xs space-y-0.5 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    <li><strong>Tap word</strong> - Mark as known/unknown</li>
-                    <li><strong>Long press</strong> - More options (copy, star, hide)</li>
-                    <li><strong>Copy List</strong> - Export all vocabulary words</li>
-                  </ul>
+
+                {/* Segmented Control for Modes */}
+                <div className={`p-1 rounded-xl mb-3 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                  <div className="grid grid-cols-3 gap-1">
+                    <button
+                      onClick={() => {
+                        setEasySelectMode(false);
+                        setStarSelectMode(false);
+                      }}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        !easySelectMode && !starSelectMode
+                          ? darkMode 
+                            ? 'bg-gray-700 text-white shadow-md' 
+                            : 'bg-white text-gray-900 shadow-md'
+                          : darkMode
+                            ? 'text-gray-400'
+                            : 'text-gray-600'
+                      }`}
+                    >
+                      Normal
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEasySelectMode(true);
+                        setStarSelectMode(false);
+                      }}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        easySelectMode
+                          ? darkMode 
+                            ? 'bg-gray-700 text-white shadow-md' 
+                            : 'bg-white text-gray-900 shadow-md'
+                          : darkMode
+                            ? 'text-gray-400'
+                            : 'text-gray-600'
+                      }`}
+                    >
+                      Easy
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEasySelectMode(false);
+                        setStarSelectMode(true);
+                      }}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        starSelectMode
+                          ? darkMode 
+                            ? 'bg-gray-700 text-white shadow-md' 
+                            : 'bg-white text-gray-900 shadow-md'
+                          : darkMode
+                            ? 'text-gray-400'
+                            : 'text-gray-600'
+                      }`}
+                    >
+                      Star
+                    </button>
+                  </div>
                 </div>
+
+                {/* Mode Description */}
+                {(easySelectMode || starSelectMode) && (
+                  <div className={`p-3 rounded-xl mb-4 ${darkMode ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
+                    <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+                      {easySelectMode && 'Tap words to mark as easy or difficult'}
+                      {starSelectMode && 'Tap words to add or remove stars'}
+                    </p>
+                  </div>
+                )}
 
                 {(() => {
                   const allWords = getUniqueWords(selectedSpeech.text);
                   const filteredWords = allWords.filter(word => !isEasyWord(word));
+                  
                   const unknownWords = filteredWords.filter(word => {
                     const stem = stemWord(word);
                     return !Array.from(selectedSpeech.knownWords).some(kw => stemWord(kw) === stem);
@@ -1672,6 +1854,8 @@ const EnglishMasteryPWA = () => {
                     const stem = stemWord(word);
                     return Array.from(selectedSpeech.knownWords).some(kw => stemWord(kw) === stem);
                   });
+
+                  const easyWordsCount = allWords.filter(word => isEasyWord(word)).length;
 
                   return (
                     <>
@@ -1693,33 +1877,45 @@ const EnglishMasteryPWA = () => {
                               return (
                                 <button
                                   key={idx}
-                                  onClick={() => toggleWord(word)}
+                                  onClick={() => {
+                                    if (easySelectMode) {
+                                      toggleEasyWord(word);
+                                    } else if (starSelectMode) {
+                                      toggleImportantWord(word, { stopPropagation: () => {} });
+                                    } else {
+                                      toggleWord(word);
+                                    }
+                                  }}
                                   onTouchStart={(e) => {
-                                    pressTimer = setTimeout(() => {
-                                      setSelectedWordForActions({
-                                        word,
-                                        isKnown: false,
-                                        isImportant,
-                                        showToggle: true,
-                                        showStar: true,
-                                        showEasy: true
-                                      });
-                                    }, 500);
+                                    if (!easySelectMode && !starSelectMode) {
+                                      pressTimer = setTimeout(() => {
+                                        setSelectedWordForActions({
+                                          word,
+                                          isKnown: false,
+                                          isImportant,
+                                          showToggle: true,
+                                          showStar: true,
+                                          showEasy: true
+                                        });
+                                      }, 500);
+                                    }
                                   }}
                                   onTouchEnd={() => {
                                     if (pressTimer) clearTimeout(pressTimer);
                                   }}
                                   onMouseDown={(e) => {
-                                    pressTimer = setTimeout(() => {
-                                      setSelectedWordForActions({
-                                        word,
-                                        isKnown: false,
-                                        isImportant,
-                                        showToggle: true,
-                                        showStar: true,
-                                        showEasy: true
-                                      });
-                                    }, 500);
+                                    if (!easySelectMode && !starSelectMode) {
+                                      pressTimer = setTimeout(() => {
+                                        setSelectedWordForActions({
+                                          word,
+                                          isKnown: false,
+                                          isImportant,
+                                          showToggle: true,
+                                          showStar: true,
+                                          showEasy: true
+                                        });
+                                      }, 500);
+                                    }
                                   }}
                                   onMouseUp={() => {
                                     if (pressTimer) clearTimeout(pressTimer);
@@ -1729,7 +1925,7 @@ const EnglishMasteryPWA = () => {
                                   }}
                                   className={`px-4 py-3 rounded-xl font-medium transition-all text-base whitespace-nowrap bg-red-500 text-white active:scale-95 min-h-[50px] min-w-[60px] ${
                                     isImportant ? 'ring-2 ring-yellow-400 ring-offset-2' : ''
-                                  }`}
+                                  } ${easySelectMode ? 'ring-2 ring-blue-400' : ''} ${starSelectMode ? 'ring-2 ring-yellow-400' : ''}`}
                                 >
                                   {word}
                                   {isImportant && <span className="ml-1">⭐</span>}
@@ -1744,7 +1940,7 @@ const EnglishMasteryPWA = () => {
                         <div className="mb-5">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className={`text-base font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                              You Know
+                              Reviewing
                             </h4>
                             <span className={`px-2.5 py-1 rounded-full font-bold text-xs ${darkMode ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700'}`}>
                               {knownWords.length}
@@ -1758,33 +1954,45 @@ const EnglishMasteryPWA = () => {
                               return (
                                 <button
                                   key={idx}
-                                  onClick={() => toggleWord(word)}
+                                  onClick={() => {
+                                    if (easySelectMode) {
+                                      toggleEasyWord(word);
+                                    } else if (starSelectMode) {
+                                      toggleImportantWord(word, { stopPropagation: () => {} });
+                                    } else {
+                                      toggleWord(word);
+                                    }
+                                  }}
                                   onTouchStart={(e) => {
-                                    pressTimer = setTimeout(() => {
-                                      setSelectedWordForActions({
-                                        word,
-                                        isKnown: true,
-                                        isImportant,
-                                        showToggle: true,
-                                        showStar: true,
-                                        showEasy: true
-                                      });
-                                    }, 500);
+                                    if (!easySelectMode && !starSelectMode) {
+                                      pressTimer = setTimeout(() => {
+                                        setSelectedWordForActions({
+                                          word,
+                                          isKnown: true,
+                                          isImportant,
+                                          showToggle: true,
+                                          showStar: true,
+                                          showEasy: true
+                                        });
+                                      }, 500);
+                                    }
                                   }}
                                   onTouchEnd={() => {
                                     if (pressTimer) clearTimeout(pressTimer);
                                   }}
                                   onMouseDown={(e) => {
-                                    pressTimer = setTimeout(() => {
-                                      setSelectedWordForActions({
-                                        word,
-                                        isKnown: true,
-                                        isImportant,
-                                        showToggle: true,
-                                        showStar: true,
-                                        showEasy: true
-                                      });
-                                    }, 500);
+                                    if (!easySelectMode && !starSelectMode) {
+                                      pressTimer = setTimeout(() => {
+                                        setSelectedWordForActions({
+                                          word,
+                                          isKnown: true,
+                                          isImportant,
+                                          showToggle: true,
+                                          showStar: true,
+                                          showEasy: true
+                                        });
+                                      }, 500);
+                                    }
                                   }}
                                   onMouseUp={() => {
                                     if (pressTimer) clearTimeout(pressTimer);
@@ -1794,7 +2002,7 @@ const EnglishMasteryPWA = () => {
                                   }}
                                   className={`px-4 py-3 rounded-xl font-medium transition-all text-base whitespace-nowrap bg-green-500 text-white shadow-lg active:scale-95 min-h-[50px] min-w-[60px] ${
                                     isImportant ? 'ring-2 ring-yellow-400 ring-offset-2' : ''
-                                  }`}
+                                  } ${easySelectMode ? 'ring-2 ring-blue-400' : ''} ${starSelectMode ? 'ring-2 ring-yellow-400' : ''}`}
                                 >
                                   {word}
                                   {isImportant && <span className="ml-1">⭐</span>}
@@ -1805,75 +2013,98 @@ const EnglishMasteryPWA = () => {
                         </div>
                       )}
 
-                      {allWords.some(word => isEasyWord(word)) && (
-                        <div className="mb-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className={`text-base font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                              Easy (Hidden)
-                            </h4>
-                            <span className={`px-2.5 py-1 rounded-full font-bold text-xs ${darkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
-                              {allWords.filter(word => isEasyWord(word)).length}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {allWords.filter(word => isEasyWord(word)).map((word, idx) => {
-                              let pressTimer = null;
-                              
-                              return (
-                                <button
-                                  key={idx}
-                                  onClick={() => toggleEasyWord(word)}
-                                  onTouchStart={(e) => {
-                                    pressTimer = setTimeout(() => {
-                                      setSelectedWordForActions({
-                                        word,
-                                        isKnown: false,
-                                        isImportant: false,
-                                        showToggle: false,
-                                        showStar: false,
-                                        showEasy: true
-                                      });
-                                    }, 500);
-                                  }}
-                                  onTouchEnd={() => {
-                                    if (pressTimer) clearTimeout(pressTimer);
-                                  }}
-                                  onMouseDown={(e) => {
-                                    pressTimer = setTimeout(() => {
-                                      setSelectedWordForActions({
-                                        word,
-                                        isKnown: false,
-                                        isImportant: false,
-                                        showToggle: false,
-                                        showStar: false,
-                                        showEasy: true
-                                      });
-                                    }, 500);
-                                  }}
-                                  onMouseUp={() => {
-                                    if (pressTimer) clearTimeout(pressTimer);
-                                  }}
-                                  onMouseLeave={() => {
-                                    if (pressTimer) clearTimeout(pressTimer);
-                                  }}
-                                  className="px-4 py-3 rounded-xl font-medium transition-all text-base whitespace-nowrap bg-blue-500 text-white opacity-60 active:opacity-100 active:scale-95 min-h-[50px] min-w-[60px]"
-                                >
-                                  {word}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className={`p-3 rounded-xl ${darkMode ? 'bg-gray-900' : 'bg-purple-50'}`}>
+                      <div className={`p-3 rounded-xl mb-4 ${darkMode ? 'bg-gray-900' : 'bg-purple-50'}`}>
                         <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          <strong>Progress:</strong> {knownWords.length} known / {filteredWords.length} total
-                          {allWords.filter(word => isEasyWord(word)).length > 0 && 
-                            ` (${allWords.filter(word => isEasyWord(word)).length} easy hidden)`
-                          }
+                          <strong>Progress:</strong> {knownWords.length} reviewing / {filteredWords.length} active words
+                          {easyWordsCount > 0 && ` • ${easyWordsCount} easy words hidden`}
                         </p>
                       </div>
+
+                      {/* Easy Words Section - Collapsible at Bottom */}
+                      {easyWordsCount > 0 && (
+                        <div className={`mt-6 border-t-2 pt-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                          <button
+                            onClick={() => setShowEasySection(!showEasySection)}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl transition-all active:scale-[0.98] ${
+                              darkMode ? 'bg-gray-900 hover:bg-gray-800' : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                Easy Words
+                              </span>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
+                                {easyWordsCount}
+                              </span>
+                            </div>
+                            <ChevronRight 
+                              size={18} 
+                              className={`transition-transform ${showEasySection ? 'rotate-90' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                            />
+                          </button>
+
+                          {showEasySection && (
+                            <div className="mt-3">
+                              <div className="flex flex-wrap gap-2">
+                                {allWords.filter(word => isEasyWord(word)).map((word, idx) => {
+                                  let pressTimer = null;
+                                  
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={() => toggleEasyWord(word)}
+                                      onTouchStart={(e) => {
+                                        if (!easySelectMode) {
+                                          pressTimer = setTimeout(() => {
+                                            setSelectedWordForActions({
+                                              word,
+                                              isKnown: false,
+                                              isImportant: false,
+                                              showToggle: false,
+                                              showStar: false,
+                                              showEasy: true
+                                            });
+                                          }, 500);
+                                        }
+                                      }}
+                                      onTouchEnd={() => {
+                                        if (pressTimer) clearTimeout(pressTimer);
+                                      }}
+                                      onMouseDown={(e) => {
+                                        if (!easySelectMode) {
+                                          pressTimer = setTimeout(() => {
+                                            setSelectedWordForActions({
+                                              word,
+                                              isKnown: false,
+                                              isImportant: false,
+                                              showToggle: false,
+                                              showStar: false,
+                                              showEasy: true
+                                            });
+                                          }, 500);
+                                        }
+                                      }}
+                                      onMouseUp={() => {
+                                        if (pressTimer) clearTimeout(pressTimer);
+                                      }}
+                                      onMouseLeave={() => {
+                                        if (pressTimer) clearTimeout(pressTimer);
+                                      }}
+                                      className={`px-4 py-3 rounded-xl font-medium transition-all text-base whitespace-nowrap text-white active:scale-95 min-h-[50px] min-w-[60px] ${
+                                        easySelectMode 
+                                          ? 'bg-blue-500 opacity-100 ring-2 ring-blue-400' 
+                                          : 'bg-gray-500 opacity-50 hover:opacity-70'
+                                      }`}
+                                    >
+                                      {word}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </>
                   );
                 })()}
