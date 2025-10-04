@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, BookOpen, Trophy, Menu, X, Moon, Sun, ChevronRight, Plus, ExternalLink, Trash2, Target, TrendingUp, Calendar, Download, Upload, FileText, Star } from 'lucide-react';
+import { Volume2, BookOpen, Trophy, Menu, X, Moon, Sun, ChevronRight, Plus, ExternalLink, Trash2, Target, TrendingUp, Calendar, Download, Upload, FileText, Star, Copy } from 'lucide-react';
 
 const EnglishMasteryPWA = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -14,6 +14,10 @@ const EnglishMasteryPWA = () => {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
   const fileInputRef = useRef(null);
+  const [copyToast, setCopyToast] = useState(null);
+  const [selectedWordForActions, setSelectedWordForActions] = useState(null);
+  const [compactView, setCompactView] = useState(false);
+  const [wordSort, setWordSort] = useState('alphabetical');
 
   const [newSpeech, setNewSpeech] = useState({
     title: '',
@@ -45,9 +49,8 @@ const EnglishMasteryPWA = () => {
 
   const [easyWords, setEasyWords] = useState(new Set());
 
-  // Prevent body scroll when menu is open
   useEffect(() => {
-    if (showMenu || showAddModal || showReportModal || showBackupModal) {
+    if (showMenu || showAddModal || showReportModal || showBackupModal || selectedWordForActions) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -55,7 +58,7 @@ const EnglishMasteryPWA = () => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showMenu, showAddModal, showReportModal, showBackupModal]);
+  }, [showMenu, showAddModal, showReportModal, showBackupModal, selectedWordForActions]);
 
   const stopWords = new Set([
     'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
@@ -95,9 +98,16 @@ const EnglishMasteryPWA = () => {
   const getUniqueWords = (text) => {
     const words = text
       .toLowerCase()
-      .replace(/[.,;:!?'"()]/g, '')
+      .replace(/https?:\/\/[^\s]+/g, '')
+      .replace(/\b\d+\b/g, '')
+      .replace(/[.,;:!?'"()[\]{}@#$%^&*+=<>\/\\|`~]/g, '')
       .split(/\s+/)
-      .filter(word => word.length > 2 && !stopWords.has(word));
+      .filter(word => {
+        return word.length > 2 && 
+               !stopWords.has(word) && 
+               !/^\d+$/.test(word) &&
+               /[a-z]/.test(word);
+      });
     
     const stemmedMap = {};
     words.forEach(word => {
@@ -183,6 +193,21 @@ const EnglishMasteryPWA = () => {
     });
   };
 
+  const decrementListen = () => {
+    if (selectedSpeech.listens <= 0) return;
+    
+    const updatedSpeeches = speeches.map(speech => 
+      speech.id === selectedSpeech.id 
+        ? { ...speech, listens: Math.max(0, speech.listens - 1) }
+        : speech
+    );
+    setSpeeches(updatedSpeeches);
+    setSelectedSpeech({
+      ...selectedSpeech,
+      listens: Math.max(0, selectedSpeech.listens - 1)
+    });
+  };
+
   const toggleWord = (word) => {
     const stem = stemWord(word);
     const newKnownWords = new Set(selectedSpeech.knownWords);
@@ -250,6 +275,42 @@ const EnglishMasteryPWA = () => {
       return { ...speech, importantWords: newImportantWords };
     });
     setSpeeches(updatedSpeeches);
+  };
+
+  const copyToClipboard = (text, type = 'word') => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyToast({ text: `${type} copied!`, show: true });
+      setTimeout(() => setCopyToast(null), 2000);
+    }).catch(() => {
+      setCopyToast({ text: 'Copy failed', show: true });
+      setTimeout(() => setCopyToast(null), 2000);
+    });
+  };
+
+  const copyAllImportantWords = () => {
+    const words = Object.keys(getAllImportantWords()).sort().join('\n');
+    copyToClipboard(words, 'Word list');
+  };
+
+  const copySpeechWordList = (speech) => {
+    const uniqueWords = getUniqueWords(speech.text);
+    const wordList = uniqueWords.join('\n');
+    copyToClipboard(wordList, 'Word list');
+  };
+
+  const getSortedImportantWords = () => {
+    const wordsMap = getAllImportantWords();
+    const entries = Object.entries(wordsMap);
+    
+    if (wordSort === 'alphabetical') {
+      return entries.sort(([a], [b]) => a.localeCompare(b));
+    } else {
+      return entries.sort(([, sourcesA], [, sourcesB]) => {
+        const firstSpeechA = sourcesA[0].speechTitle;
+        const firstSpeechB = sourcesB[0].speechTitle;
+        return firstSpeechA.localeCompare(firstSpeechB);
+      });
+    }
   };
 
   const getDaysStudied = (speech) => {
@@ -557,7 +618,112 @@ const EnglishMasteryPWA = () => {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'} transition-colors`}>
-      {/* Modals */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translate(-50%, -10px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
+
+      {copyToast && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
+          <div className={`px-6 py-3 rounded-full shadow-2xl ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} border-2 border-green-500`}>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="font-medium text-sm">{copyToast.text}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedWordForActions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 p-4" onClick={() => setSelectedWordForActions(null)}>
+          <div 
+            className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-3xl p-5 max-w-lg w-full shadow-2xl`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {selectedWordForActions.word}
+              </h3>
+              <button
+                onClick={() => setSelectedWordForActions(null)}
+                className={`p-2 rounded-full transition-all active:scale-90 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  copyToClipboard(selectedWordForActions.word);
+                  setSelectedWordForActions(null);
+                }}
+                className={`w-full p-4 rounded-xl font-medium transition-all active:scale-[0.98] flex items-center justify-between ${
+                  darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'
+                }`}
+              >
+                <span>Copy Word</span>
+                <Copy size={20} />
+              </button>
+
+              {selectedWordForActions.showToggle && (
+                <button
+                  onClick={() => {
+                    toggleWord(selectedWordForActions.word);
+                    setSelectedWordForActions(null);
+                  }}
+                  className={`w-full p-4 rounded-xl font-medium transition-all active:scale-[0.98] flex items-center justify-between ${
+                    selectedWordForActions.isKnown
+                      ? 'bg-red-500 text-white'
+                      : 'bg-green-500 text-white'
+                  }`}
+                >
+                  <span>{selectedWordForActions.isKnown ? 'Mark as Unknown' : 'Mark as Known'}</span>
+                  <ChevronRight size={20} />
+                </button>
+              )}
+
+              {selectedWordForActions.showStar && (
+                <button
+                  onClick={() => {
+                    toggleImportantWord(selectedWordForActions.word, { stopPropagation: () => {} });
+                    setSelectedWordForActions(null);
+                  }}
+                  className={`w-full p-4 rounded-xl font-medium transition-all active:scale-[0.98] flex items-center justify-between ${
+                    selectedWordForActions.isImportant
+                      ? 'bg-yellow-500 text-white'
+                      : darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <span>{selectedWordForActions.isImportant ? 'Remove Star' : 'Add Star'}</span>
+                  <Star size={20} fill={selectedWordForActions.isImportant ? 'white' : 'none'} />
+                </button>
+              )}
+
+              {selectedWordForActions.showEasy && (
+                <button
+                  onClick={() => {
+                    toggleEasyWord(selectedWordForActions.word);
+                    setSelectedWordForActions(null);
+                  }}
+                  className={`w-full p-4 rounded-xl font-medium transition-all active:scale-[0.98] flex items-center justify-between ${
+                    darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <span>{isEasyWord(selectedWordForActions.word) ? 'Unmark Easy' : 'Mark as Easy'}</span>
+                  <span className="text-xl">✓</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-3xl p-5 max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl`}>
@@ -771,7 +937,6 @@ const EnglishMasteryPWA = () => {
         </div>
       )}
 
-      {/* Header - Fixed */}
       <header className={`fixed top-0 left-0 right-0 z-40 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -814,7 +979,6 @@ const EnglishMasteryPWA = () => {
         </div>
       </header>
 
-      {/* Sidebar Overlay */}
       {showMenu && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-30"
@@ -824,7 +988,6 @@ const EnglishMasteryPWA = () => {
       )}
 
       <div className="flex pt-[57px]">
-        {/* Sidebar */}
         <aside className={`
           fixed top-[57px] left-0 h-[calc(100vh-57px)]
           w-64 ${darkMode ? 'bg-gray-800' : 'bg-white'} p-4
@@ -897,7 +1060,6 @@ const EnglishMasteryPWA = () => {
           </nav>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-4 w-full min-h-[calc(100vh-57px)]">
           {currentView === 'library' && (
             <div>
@@ -945,11 +1107,78 @@ const EnglishMasteryPWA = () => {
 
           {currentView === 'mywords' && (
             <div>
-              <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                My Important Words
-              </h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  My Important Words
+                </h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCompactView(!compactView)}
+                    className={`p-2.5 rounded-xl transition-all active:scale-90 ${
+                      compactView 
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg' 
+                        : darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'
+                    }`}
+                    title={compactView ? "Detailed View" : "Compact View"}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                      {compactView ? (
+                        <>
+                          <rect x="2" y="3" width="16" height="3" rx="1"/>
+                          <rect x="2" y="8" width="16" height="3" rx="1"/>
+                          <rect x="2" y="13" width="16" height="3" rx="1"/>
+                        </>
+                      ) : (
+                        <>
+                          <rect x="2" y="2" width="16" height="6" rx="1"/>
+                          <rect x="2" y="10" width="16" height="6" rx="1"/>
+                        </>
+                      )}
+                    </svg>
+                  </button>
+                  {Object.keys(getAllImportantWords()).length > 0 && (
+                    <button
+                      onClick={copyAllImportantWords}
+                      className="flex items-center gap-2 px-3 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl active:scale-95 transition-all font-medium text-sm shadow-lg"
+                    >
+                      <Copy size={18} />
+                      <span className="hidden sm:inline">Copy List</span>
+                      <span className="sm:hidden">Copy</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {Object.keys(getAllImportantWords()).length > 0 && (
+                <div className={`flex items-center gap-2 mb-4 p-3 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}>
+                  <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Sort:
+                  </span>
+                  <button
+                    onClick={() => setWordSort('alphabetical')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+                      wordSort === 'alphabetical'
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                        : darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    A-Z
+                  </button>
+                  <button
+                    onClick={() => setWordSort('speech')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+                      wordSort === 'speech'
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                        : darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    By Speech
+                  </button>
+                </div>
+              )}
+
               <p className={`mb-5 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Words marked with a star
+                {Object.keys(getAllImportantWords()).length} words marked with a star
               </p>
 
               {Object.keys(getAllImportantWords()).length === 0 ? (
@@ -960,17 +1189,66 @@ const EnglishMasteryPWA = () => {
                   <p className="text-xl font-bold mb-3">No important words yet</p>
                   <p className="text-sm px-4">Star words while studying to add them here</p>
                 </div>
+              ) : compactView ? (
+                <div className="space-y-2">
+                  {getSortedImportantWords().map(([word, sources]) => (
+                    <div
+                      key={word}
+                      className={`p-3 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg flex items-center justify-between transition-all`}
+                    >
+                      <button
+                        onClick={() => copyToClipboard(word)}
+                        className="flex items-center gap-3 flex-1 min-w-0 text-left active:scale-[0.98] transition-all"
+                      >
+                        <span className={`text-base font-bold ${darkMode ? 'text-white' : 'text-gray-900'} truncate`}>
+                          {word}
+                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {sources.length > 1 && `${sources.length} speeches`}
+                            {sources.length === 1 && sources[0].speechTitle.substring(0, 20) + (sources[0].speechTitle.length > 20 ? '...' : '')}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                              sources.every(s => s.isKnown)
+                                ? 'bg-green-500 text-white'
+                                : sources.some(s => s.isKnown)
+                                ? 'bg-yellow-500 text-white'
+                                : 'bg-red-500 text-white'
+                            }`}
+                          >
+                            {sources.filter(s => s.isKnown).length}/{sources.length}
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeImportantWord(word);
+                        }}
+                        className={`p-2 rounded-lg transition-all active:scale-90 ml-2 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                      >
+                        <X size={16} className="text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="space-y-4">
-                  {Object.entries(getAllImportantWords()).sort().map(([word, sources]) => (
+                  {getSortedImportantWords().map(([word, sources]) => (
                     <div
                       key={word}
                       className={`p-4 rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-lg`}
                     >
                       <div className="flex items-start justify-between mb-3">
-                        <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {word}
-                        </h3>
+                        <button
+                          onClick={() => copyToClipboard(word)}
+                          className="flex-1 text-left"
+                        >
+                          <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {word}
+                          </h3>
+                        </button>
                         <button
                           onClick={() => removeImportantWord(word)}
                           className={`p-2 rounded-lg transition-all active:scale-90 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
@@ -1328,31 +1606,58 @@ const EnglishMasteryPWA = () => {
                   </a>
                 )}
 
-                <button
-                  onClick={incrementListen}
-                  className="w-full px-4 py-3.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl active:shadow-xl transition-all font-bold text-base flex items-center justify-center gap-2 mb-5 active:scale-[0.98] shadow-lg"
-                >
-                  <Volume2 size={20} />
-                  I Listened ({selectedSpeech.listens})
-                </button>
+                <div className="flex gap-2 mb-5">
+                  <button
+                    onClick={incrementListen}
+                    className="flex-1 px-4 py-3.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl active:shadow-xl transition-all font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg"
+                  >
+                    <Volume2 size={20} />
+                    I Listened ({selectedSpeech.listens})
+                  </button>
+
+                  {selectedSpeech.listens > 0 && (
+                    <button
+                      onClick={decrementListen}
+                      className={`px-4 py-3.5 rounded-xl transition-all font-bold text-base active:scale-[0.98] shadow-lg ${
+                        darkMode ? 'bg-gray-700 text-white active:bg-gray-600' : 'bg-gray-200 text-gray-900 active:bg-gray-300'
+                      }`}
+                    >
+                      -1
+                    </button>
+                  )}
+                </div>
+
+                <div className={`p-3 rounded-xl mb-5 ${darkMode ? 'bg-gray-900' : 'bg-blue-50'}`}>
+                  <p className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <strong>Tip:</strong> Click the -1 button if you accidentally increased the count
+                  </p>
+                </div>
 
                 <CalendarView speech={selectedSpeech} />
               </div>
 
               <div className={`p-4 rounded-3xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-2xl`}>
-                <h3 className={`text-lg font-bold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Vocabulary
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Vocabulary
+                  </h3>
+                  <button
+                    onClick={() => copySpeechWordList(selectedSpeech)}
+                    className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl active:scale-95 transition-all font-medium text-sm shadow-lg"
+                  >
+                    <Copy size={16} />
+                    Copy List
+                  </button>
+                </div>
                 
                 <div className={`p-3 rounded-xl mb-4 ${darkMode ? 'bg-gray-900' : 'bg-blue-50'}`}>
                   <p className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-1.5`}>
                     <strong>How to use:</strong>
                   </p>
                   <ul className={`text-xs space-y-0.5 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    <li><strong>Red</strong> - Click to mark as known</li>
-                    <li><strong>Green</strong> - Click to mark as unknown</li>
-                    <li><strong>Star</strong> - Save to My Words</li>
-                    <li><strong>Check</strong> - Mark as easy (hide)</li>
+                    <li><strong>Tap word</strong> - Mark as known/unknown</li>
+                    <li><strong>Long press</strong> - More options (copy, star, hide)</li>
+                    <li><strong>Copy List</strong> - Export all vocabulary words</li>
                   </ul>
                 </div>
 
@@ -1383,38 +1688,52 @@ const EnglishMasteryPWA = () => {
                           <div className="flex flex-wrap gap-2">
                             {unknownWords.map((word, idx) => {
                               const isImportant = (selectedSpeech.importantWords || new Set()).has(word);
+                              let pressTimer = null;
+                              
                               return (
-                                <div key={idx} className="relative group">
-                                  <button
-                                    onClick={() => toggleWord(word)}
-                                    className={`px-3 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap bg-red-500 text-white active:scale-95 min-h-[44px] ${
-                                      isImportant ? 'ring-2 ring-yellow-400' : ''
-                                    }`}
-                                  >
-                                    {word}
-                                  </button>
-                                  <div className="absolute -top-1 -right-1 flex gap-0.5">
-                                    <button
-                                      onClick={(e) => toggleImportantWord(word, e)}
-                                      className={`p-1.5 rounded-full transition-all shadow-lg active:scale-90 ${
-                                        isImportant
-                                          ? 'bg-yellow-400 text-white'
-                                          : 'bg-gray-300 text-gray-600 opacity-0 group-hover:opacity-100'
-                                      }`}
-                                    >
-                                      <Star size={12} fill={isImportant ? 'white' : 'none'} />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleEasyWord(word);
-                                      }}
-                                      className="p-1.5 rounded-full bg-blue-500 text-white opacity-0 group-hover:opacity-100 transition-all shadow-lg text-[10px] font-bold active:scale-90"
-                                    >
-                                      ✓
-                                    </button>
-                                  </div>
-                                </div>
+                                <button
+                                  key={idx}
+                                  onClick={() => toggleWord(word)}
+                                  onTouchStart={(e) => {
+                                    pressTimer = setTimeout(() => {
+                                      setSelectedWordForActions({
+                                        word,
+                                        isKnown: false,
+                                        isImportant,
+                                        showToggle: true,
+                                        showStar: true,
+                                        showEasy: true
+                                      });
+                                    }, 500);
+                                  }}
+                                  onTouchEnd={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  onMouseDown={(e) => {
+                                    pressTimer = setTimeout(() => {
+                                      setSelectedWordForActions({
+                                        word,
+                                        isKnown: false,
+                                        isImportant,
+                                        showToggle: true,
+                                        showStar: true,
+                                        showEasy: true
+                                      });
+                                    }, 500);
+                                  }}
+                                  onMouseUp={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  className={`px-4 py-3 rounded-xl font-medium transition-all text-base whitespace-nowrap bg-red-500 text-white active:scale-95 min-h-[50px] min-w-[60px] ${
+                                    isImportant ? 'ring-2 ring-yellow-400 ring-offset-2' : ''
+                                  }`}
+                                >
+                                  {word}
+                                  {isImportant && <span className="ml-1">⭐</span>}
+                                </button>
                               );
                             })}
                           </div>
@@ -1434,38 +1753,52 @@ const EnglishMasteryPWA = () => {
                           <div className="flex flex-wrap gap-2">
                             {knownWords.map((word, idx) => {
                               const isImportant = (selectedSpeech.importantWords || new Set()).has(word);
+                              let pressTimer = null;
+                              
                               return (
-                                <div key={idx} className="relative group">
-                                  <button
-                                    onClick={() => toggleWord(word)}
-                                    className={`px-3 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap bg-green-500 text-white shadow-lg active:scale-95 min-h-[44px] ${
-                                      isImportant ? 'ring-2 ring-yellow-400' : ''
-                                    }`}
-                                  >
-                                    {word}
-                                  </button>
-                                  <div className="absolute -top-1 -right-1 flex gap-0.5">
-                                    <button
-                                      onClick={(e) => toggleImportantWord(word, e)}
-                                      className={`p-1.5 rounded-full transition-all shadow-lg active:scale-90 ${
-                                        isImportant
-                                          ? 'bg-yellow-400 text-white'
-                                          : 'bg-gray-300 text-gray-600 opacity-0 group-hover:opacity-100'
-                                      }`}
-                                    >
-                                      <Star size={12} fill={isImportant ? 'white' : 'none'} />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleEasyWord(word);
-                                      }}
-                                      className="p-1.5 rounded-full bg-blue-500 text-white opacity-0 group-hover:opacity-100 transition-all shadow-lg text-[10px] font-bold active:scale-90"
-                                    >
-                                      ✓
-                                    </button>
-                                  </div>
-                                </div>
+                                <button
+                                  key={idx}
+                                  onClick={() => toggleWord(word)}
+                                  onTouchStart={(e) => {
+                                    pressTimer = setTimeout(() => {
+                                      setSelectedWordForActions({
+                                        word,
+                                        isKnown: true,
+                                        isImportant,
+                                        showToggle: true,
+                                        showStar: true,
+                                        showEasy: true
+                                      });
+                                    }, 500);
+                                  }}
+                                  onTouchEnd={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  onMouseDown={(e) => {
+                                    pressTimer = setTimeout(() => {
+                                      setSelectedWordForActions({
+                                        word,
+                                        isKnown: true,
+                                        isImportant,
+                                        showToggle: true,
+                                        showStar: true,
+                                        showEasy: true
+                                      });
+                                    }, 500);
+                                  }}
+                                  onMouseUp={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  className={`px-4 py-3 rounded-xl font-medium transition-all text-base whitespace-nowrap bg-green-500 text-white shadow-lg active:scale-95 min-h-[50px] min-w-[60px] ${
+                                    isImportant ? 'ring-2 ring-yellow-400 ring-offset-2' : ''
+                                  }`}
+                                >
+                                  {word}
+                                  {isImportant && <span className="ml-1">⭐</span>}
+                                </button>
                               );
                             })}
                           </div>
@@ -1483,25 +1816,52 @@ const EnglishMasteryPWA = () => {
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {allWords.filter(word => isEasyWord(word)).map((word, idx) => (
-                              <div key={idx} className="relative group">
+                            {allWords.filter(word => isEasyWord(word)).map((word, idx) => {
+                              let pressTimer = null;
+                              
+                              return (
                                 <button
+                                  key={idx}
                                   onClick={() => toggleEasyWord(word)}
-                                  className="px-3 py-2.5 rounded-xl font-medium transition-all text-sm whitespace-nowrap bg-blue-500 text-white opacity-60 active:opacity-100 active:scale-95 min-h-[44px]"
+                                  onTouchStart={(e) => {
+                                    pressTimer = setTimeout(() => {
+                                      setSelectedWordForActions({
+                                        word,
+                                        isKnown: false,
+                                        isImportant: false,
+                                        showToggle: false,
+                                        showStar: false,
+                                        showEasy: true
+                                      });
+                                    }, 500);
+                                  }}
+                                  onTouchEnd={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  onMouseDown={(e) => {
+                                    pressTimer = setTimeout(() => {
+                                      setSelectedWordForActions({
+                                        word,
+                                        isKnown: false,
+                                        isImportant: false,
+                                        showToggle: false,
+                                        showStar: false,
+                                        showEasy: true
+                                      });
+                                    }, 500);
+                                  }}
+                                  onMouseUp={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (pressTimer) clearTimeout(pressTimer);
+                                  }}
+                                  className="px-4 py-3 rounded-xl font-medium transition-all text-base whitespace-nowrap bg-blue-500 text-white opacity-60 active:opacity-100 active:scale-95 min-h-[50px] min-w-[60px]"
                                 >
                                   {word}
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleEasyWord(word);
-                                  }}
-                                  className="absolute -top-1 -right-1 p-1.5 rounded-full bg-red-500 text-white transition-all shadow-lg opacity-0 group-hover:opacity-100 text-[10px] font-bold active:scale-90"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
