@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/english-mastery-pwa/static/css/main.6361f725.css",
-    "main.js": "/english-mastery-pwa/static/js/main.639946fb.js",
+    "main.css": "/english-mastery-pwa/static/css/main.680d04a0.css",
+    "main.js": "/english-mastery-pwa/static/js/main.d84095e1.js",
     "index.html": "/english-mastery-pwa/index.html",
-    "main.6361f725.css.map": "/english-mastery-pwa/static/css/main.6361f725.css.map",
-    "main.639946fb.js.map": "/english-mastery-pwa/static/js/main.639946fb.js.map"
+    "main.680d04a0.css.map": "/english-mastery-pwa/static/css/main.680d04a0.css.map",
+    "main.d84095e1.js.map": "/english-mastery-pwa/static/js/main.d84095e1.js.map"
   },
   "entrypoints": [
-    "static/css/main.6361f725.css",
-    "static/js/main.639946fb.js"
+    "static/css/main.680d04a0.css",
+    "static/js/main.d84095e1.js"
   ]
 }
