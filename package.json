@@ -1,7 +1,7 @@
 {
   "name": "english-mastery-pwa",
   "version": "0.1.0",
-  "homepage": "https://YOUR-USERNAME.github.io/english-mastery-pwa",
+  "homepage": "https://tahedi1.github.io/english-mastery-pwa",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
-    "gh-pages": "^6.1.0",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1"
   },
