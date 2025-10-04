@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.css": "/Tahedi1/english-mastery-pwa/static/css/main.6361f725.css",
-    "main.js": "/Tahedi1/english-mastery-pwa/static/js/main.639946fb.js",
-    "index.html": "/Tahedi1/english-mastery-pwa/index.html",
-    "main.6361f725.css.map": "/Tahedi1/english-mastery-pwa/static/css/main.6361f725.css.map",
-    "main.639946fb.js.map": "/Tahedi1/english-mastery-pwa/static/js/main.639946fb.js.map"
+    "main.css": "/english-mastery-pwa/static/css/main.6361f725.css",
+    "main.js": "/english-mastery-pwa/static/js/main.639946fb.js",
+    "index.html": "/english-mastery-pwa/index.html",
+    "main.6361f725.css.map": "/english-mastery-pwa/static/css/main.6361f725.css.map",
+    "main.639946fb.js.map": "/english-mastery-pwa/static/js/main.639946fb.js.map"
   },
   "entrypoints": [
     "static/css/main.6361f725.css",
