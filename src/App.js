@@ -22,6 +22,7 @@ const EnglishMasteryPWA = () => {
   const [showEasyWords, setShowEasyWords] = useState(false);
   const [starSelectMode, setStarSelectMode] = useState(false);
   const [showEasySection, setShowEasySection] = useState(false);
+  const [showSpeechText, setShowSpeechText] = useState(false);
 
   const [newSpeech, setNewSpeech] = useState({
     title: '',
@@ -917,11 +918,12 @@ const EnglishMasteryPWA = () => {
                 <textarea
                   value={newSpeech.text}
                   onChange={(e) => setNewSpeech({...newSpeech, text: e.target.value})}
-                  rows={7}
+                  rows={10}
                   className={`w-full px-4 py-3 rounded-xl border-2 text-base ${
                     darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-200'
-                  } focus:border-blue-500 outline-none resize-none`}
+                  } focus:border-blue-500 outline-none resize-none overflow-y-auto`}
                   placeholder="Paste the full text of the speech here..."
+                  style={{ maxHeight: '300px' }}
                 />
                 <p className={`text-xs mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {getUniqueWords(newSpeech.text).length} unique words to learn
@@ -1759,6 +1761,35 @@ const EnglishMasteryPWA = () => {
                 </div>
 
                 <CalendarView speech={selectedSpeech} />
+              </div>
+
+              {/* Speech Text - Collapsible Section */}
+              <div className={`p-4 rounded-3xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-2xl mb-5`}>
+                <button
+                  onClick={() => setShowSpeechText(!showSpeechText)}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl transition-all active:scale-[0.98] ${
+                    darkMode ? 'bg-gray-900 hover:bg-gray-800' : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText size={18} className={darkMode ? 'text-gray-400' : 'text-gray-600'} />
+                    <span className={`text-base font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Speech Text
+                    </span>
+                  </div>
+                  <ChevronRight 
+                    size={20} 
+                    className={`transition-transform ${showSpeechText ? 'rotate-90' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                  />
+                </button>
+
+                {showSpeechText && (
+                  <div className={`mt-4 p-4 rounded-xl ${darkMode ? 'bg-gray-900' : 'bg-gray-50'} max-h-96 overflow-y-auto`}>
+                    <p className={`text-base leading-relaxed whitespace-pre-wrap ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {selectedSpeech.text}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className={`p-4 rounded-3xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-2xl`}>
